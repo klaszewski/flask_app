@@ -1,13 +1,16 @@
 import os
+from unittest import result
 from flask import Flask, flash, request, redirect, send_file
 from werkzeug.utils import secure_filename
 import pandas as pd
 from joblib import dump,load
-from sklearn.preprocessing import OrdinalEncoder
+import json
 
 app = Flask(__name__)
 
 model = load('model.pkl')
+enc = load('enc.pkl')
+
 UPLOAD_FOLDER = ''
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'json'}
 
@@ -71,17 +74,20 @@ def upload_file():
             df[site_names] = df['sites'].apply(lambda x: get_sites(x))
             df = df.drop('sites',axis = 1)
             X = df.reset_index(drop = True)
-            enc = OrdinalEncoder()
 
             X_cat = X.select_dtypes(include = 'object').columns
             X[X_cat] = enc.fit_transform(X[X_cat])
             predict = model.predict(X)
-            result = pd.DataFrame(predict)
-            result.to_csv(filename, index=False)
+            pd.Series(predict).to_json('results.json', orient="records")
+            #result = pd.DataFrame(predict)
+            #result_json = result.to_json()
+            #result_file = json.dumps(result)
+            #with open('result.json', 'w') as outfile:
+            #outfile = json.dumps(result_json)
             #safe_path = safe_join(app.config['UPLOAD_FOLDER'], result)
-            return send_file(filename, 
-                            mimetype = 'text/csv',
-                            attachment_filename = 'result.json',
+            return send_file('results.json', 
+                            mimetype = 'application/json',
+                            attachment_filename = 'results.json',
                             as_attachment = True)
     return '''
     <!doctype html>
